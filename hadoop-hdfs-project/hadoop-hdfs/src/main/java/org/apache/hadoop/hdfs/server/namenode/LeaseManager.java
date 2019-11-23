@@ -106,23 +106,32 @@ public class LeaseManager {
    * which are not COMPLETE. The FSNamesystem read lock MUST be held before
    * calling this method.
    * @return
+   * 在hdfs里面，block有两种状态，一种是可以使用的完整的block块，另外一种是不能正常使用的
+   * 此方法获取的是还不能正常使用的block的个数
+   *
    */
   synchronized long getNumUnderConstructionBlocks() {
     assert this.fsnamesystem.hasReadLock() : "The FSNamesystem read lock wasn't"
       + "acquired before counting under construction blocks";
     long numUCBlocks = 0;
+    //Lease对应的hdfs的目录
+    //遍历所有的目录
     for (Lease lease : sortedLeases) {
+      //获取所有目录的路径
       for (String path : lease.getPaths()) {
         final INodeFile cons;
         try {
+          //读取数据
           cons = this.fsnamesystem.getFSDirectory().getINode(path).asFile();
           Preconditions.checkState(cons.isUnderConstruction());
         } catch (UnresolvedLinkException e) {
           throw new AssertionError("Lease files should reside on this FS");
         }
+        //一个文件对应很多block块
         BlockInfoContiguous[] blocks = cons.getBlocks();
         if(blocks == null)
           continue;
+        //遍历所有的block块
         for(BlockInfoContiguous b : blocks) {
           if(!b.isComplete())
             numUCBlocks++;

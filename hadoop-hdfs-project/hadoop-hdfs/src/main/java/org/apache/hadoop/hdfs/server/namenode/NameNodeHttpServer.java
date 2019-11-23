@@ -118,6 +118,9 @@ public class NameNodeHttpServer {
       }
     }
 
+    /**
+     * 启动HttpServer2服务
+     */
     HttpServer2.Builder builder = DFSUtil.httpServerTemplateForNNAndJN(conf,
         httpAddr, httpsAddr, "hdfs",
         DFSConfigKeys.DFS_NAMENODE_KERBEROS_INTERNAL_SPNEGO_PRINCIPAL_KEY,
@@ -138,6 +141,7 @@ public class NameNodeHttpServer {
 
     httpServer.setAttribute(NAMENODE_ATTRIBUTE_KEY, nn);
     httpServer.setAttribute(JspHelper.CURRENT_CONF, conf);
+    //httpServer绑定Servlet
     setupServlets(httpServer, conf);
     httpServer.start();
 
@@ -252,6 +256,7 @@ public class NameNodeHttpServer {
         true);
     httpServer.addInternalServlet("imagetransfer", ImageServlet.PATH_SPEC,
         ImageServlet.class, true);
+    //在50070界面看到的目录信息
     httpServer.addInternalServlet("listPaths", "/listPaths/*",
         ListPathsServlet.class, false);
     httpServer.addInternalServlet("data", "/data/*",

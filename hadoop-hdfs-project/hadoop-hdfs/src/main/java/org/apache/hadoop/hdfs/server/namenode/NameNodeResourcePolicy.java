@@ -53,6 +53,7 @@ final class NameNodeResourcePolicy {
     int requiredResourceCount = 0;
     int redundantResourceCount = 0;
     int disabledRedundantResourceCount = 0;
+    //遍历检查目录
     for (CheckableNameNodeResource resource : resources) {
       if (!resource.isRequired()) {
         redundantResourceCount++;
@@ -61,6 +62,7 @@ final class NameNodeResourcePolicy {
         }
       } else {
         requiredResourceCount++;
+        //检查目录资源是否充足
         if (!resource.isResourceAvailable()) {
           // Short circuit - a required resource is not available.
           return false;

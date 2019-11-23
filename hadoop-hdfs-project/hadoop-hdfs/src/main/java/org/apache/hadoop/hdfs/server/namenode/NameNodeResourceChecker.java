@@ -80,11 +80,16 @@ public class NameNodeResourceChecker {
 
     @Override
     public boolean isResourceAvailable() {
+      //获取当前目录空间的大小
       long availableSpace = df.getAvailable();
       if (LOG.isDebugEnabled()) {
         LOG.debug("Space available on volume '" + volume + "' is "
             + availableSpace);
       }
+      //记忆中这个目录貌似是那个100m----在下方查看，默认是100M
+      //个人感觉这个最小空间大小的报警机制还是需要根据实际情况来设置的，毕竟100m,
+      //服务可以起来，但是服务不能正常起来
+      //error<warn<info<debug<
       if (availableSpace < duReserved) {
         LOG.warn("Space available on volume '" + volume + "' is "
             + availableSpace +
@@ -110,6 +115,8 @@ public class NameNodeResourceChecker {
     this.conf = conf;
     volumes = new HashMap<String, CheckedVolume>();
 
+    //设置阈值-剩余多少磁盘会告警
+    //默认值是100M
     duReserved = conf.getLong(DFSConfigKeys.DFS_NAMENODE_DU_RESERVED_KEY,
         DFSConfigKeys.DFS_NAMENODE_DU_RESERVED_DEFAULT);
     
@@ -117,6 +124,7 @@ public class NameNodeResourceChecker {
         .getTrimmedStringCollection(DFSConfigKeys.DFS_NAMENODE_CHECKED_VOLUMES_KEY));
     
     Collection<URI> localEditDirs = Collections2.filter(
+            //检查当前当前目录是否合法
         FSNamesystem.getNamespaceEditsDirs(conf),
         new Predicate<URI>() {
           @Override
@@ -165,6 +173,7 @@ public class NameNodeResourceChecker {
     CheckedVolume newVolume = new CheckedVolume(dir, required);
     CheckedVolume volume = volumes.get(newVolume.getVolume());
     if (volume == null || !volume.isRequired()) {
+      //一个volumes就是一个目录
       volumes.put(newVolume.getVolume(), newVolume);
     }
   }

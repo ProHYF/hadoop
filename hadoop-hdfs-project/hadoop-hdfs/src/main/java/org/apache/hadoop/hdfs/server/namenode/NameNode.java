@@ -577,6 +577,7 @@ public class NameNode implements NameNodeStatusMXBean {
   /** @return the NameNode HTTP address. */
   public static InetSocketAddress getHttpAddress(Configuration conf) {
     return  NetUtils.createSocketAddr(
+            //设置默认地址和端口号50070
         conf.getTrimmed(DFS_NAMENODE_HTTP_ADDRESS_KEY, DFS_NAMENODE_HTTP_ADDRESS_DEFAULT));
   }
 
@@ -635,13 +636,16 @@ public class NameNode implements NameNodeStatusMXBean {
     StartupProgressMetrics.register(startupProgress);
 
     if (NamenodeRole.NAMENODE == role) {
+      //启动HttpServer 50070默认端口
       startHttpServer(conf);
     }
 
     this.spanReceiverHost = SpanReceiverHost.getInstance(conf);
 
+    //加载元数据
     loadNamesystem(conf);
 
+    //nameNode的rpc
     rpcServer = createRpcServer(conf);
     if (clientNamenodeAddress == null) {
       // This is expected for MiniDFSCluster. Set it now using 
@@ -659,7 +663,8 @@ public class NameNode implements NameNodeStatusMXBean {
     pauseMonitor = new JvmPauseMonitor(conf);
     pauseMonitor.start();
     metrics.getJvmMetrics().setPauseMonitor(pauseMonitor);
-    
+    //1)进行资源检查，检查是否有磁盘足够存储元数据
+    //2)进行安全模式检查，检查是否可以退出安全模式
     startCommonServices(conf);
   }
   
@@ -674,6 +679,7 @@ public class NameNode implements NameNodeStatusMXBean {
 
   /** Start the services common to active and standby states */
   private void startCommonServices(Configuration conf) throws IOException {
+    //FSNameSystem是管理HDFS元数据的，里面涉及关于元数据的东西
     namesystem.startCommonServices(conf, haContext);
     registerNNSMXBean();
     if (NamenodeRole.NAMENODE != role) {
@@ -681,6 +687,7 @@ public class NameNode implements NameNodeStatusMXBean {
       httpServer.setNameNodeAddress(getNameNodeAddress());
       httpServer.setFSImage(getFSImage());
     }
+    //启动服务
     rpcServer.start();
     plugins = conf.getInstances(DFS_NAMENODE_PLUGINS_KEY,
         ServicePlugin.class);
@@ -807,6 +814,7 @@ public class NameNode implements NameNodeStatusMXBean {
     this.haContext = createHAContext();
     try {
       initializeGenericKeys(conf, nsId, namenodeId);
+      //初始化nameNode
       initialize(conf);
       try {
         haContext.writeLock();
@@ -1411,11 +1419,23 @@ public class NameNode implements NameNodeStatusMXBean {
       StartupOption.METADATAVERSION, fs, null);
   }
 
+  /**
+   * 创建NameNode
+   * @param argv  参数
+   * @param conf 配置文件
+   * @return
+   * @throws IOException
+   */
   public static NameNode createNameNode(String argv[], Configuration conf)
       throws IOException {
     LOG.info("createNameNode " + Arrays.asList(argv));
     if (conf == null)
       conf = new HdfsConfiguration();
+    /**
+     * 我们在操作HDFS集群的时候，会传递如下参数:
+     *  hdfs name -format
+     *  hadoop-daemon.sh start namenode
+     */
     StartupOption startOpt = parseArguments(argv);
     if (startOpt == null) {
       printUsage(System.err);
@@ -1424,6 +1444,7 @@ public class NameNode implements NameNodeStatusMXBean {
     setStartupOption(conf, startOpt);
 
     switch (startOpt) {
+      //如果代码格式为格式化
       case FORMAT: {
         boolean aborted = format(conf, startOpt.getForceFormat(),
             startOpt.getInteractiveFormat());
@@ -1484,6 +1505,7 @@ public class NameNode implements NameNodeStatusMXBean {
       }
       default: {
         DefaultMetricsSystem.initialize("NameNode");
+        //创建namenode
         return new NameNode(conf);
       }
     }
@@ -1544,12 +1566,14 @@ public class NameNode implements NameNodeStatusMXBean {
   /**
    */
   public static void main(String argv[]) throws Exception {
+    //解析参数-如果参数出错，直接退出
     if (DFSUtil.parseHelpArgument(argv, NameNode.USAGE, System.out, true)) {
       System.exit(0);
     }
 
     try {
       StringUtils.startupShutdownMessage(NameNode.class, argv, LOG);
+      //创建NameNode核心代码
       NameNode namenode = createNameNode(argv, null);
       if (namenode != null) {
         namenode.join();
